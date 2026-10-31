@@ -29,7 +29,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const errorMsg = error.response?.data?.message || error.message || 'API request failed';
-    return Promise.reject(new Error(errorMsg));
+    const customError = new Error(errorMsg);
+    customError.response = error.response;
+    customError.status = error.response?.status;
+    customError.errors = error.response?.data?.errors || [];
+    return Promise.reject(customError);
   }
 );
 
