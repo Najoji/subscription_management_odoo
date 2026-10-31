@@ -1,5 +1,6 @@
 import api from './axios.js';
 import { mockFallback } from './mockFallback.js';
+import { MOCK_MODE_ENABLED } from './mockMode.js';
 
 export const dashboardApi = {
   getSummary: async () => {
@@ -7,7 +8,7 @@ export const dashboardApi = {
       const res = await api.get('/dashboard/summary');
       return res.data;
     } catch (err) {
-      if (err.status === 501 || err.status === 404) {
+      if (MOCK_MODE_ENABLED && err.status === 501) {
         return { success: true, data: mockFallback.getDashboardSummary() };
       }
       throw err;

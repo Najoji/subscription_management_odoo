@@ -3,6 +3,7 @@ import { supabase } from '../api/supabase.js';
 import { authApi } from '../api/authApi.js';
 
 const AuthContext = createContext(null);
+const DEMO_MODE_ENABLED = import.meta.env.VITE_ENABLE_DEMO_MODE === 'true';
 
 export const validatePassword = (password) => {
   if (!password || password.length < 9) {
@@ -94,7 +95,24 @@ export const AuthProvider = ({ children }) => {
         setProfile(null);
         setUser(null);
         setSession(null);
+        return null;
       }
+      if (DEMO_MODE_ENABLED) {
+        const saved = localStorage.getItem('brightloop_local_profile');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setProfile(parsed);
+            return parsed;
+          } catch {}
+        }
+      }
+      localStorage.removeItem('brightloop_local_profile');
+      setProfile(null);
+    }
+    if (!DEMO_MODE_ENABLED) {
+      localStorage.removeItem('brightloop_local_profile');
+      setProfile(null);
     }
     return null;
   }, []);
@@ -112,11 +130,23 @@ export const AuthProvider = ({ children }) => {
             setUser(currentSession.user);
             await fetchProfile();
           } else {
-            // Clean up any phantom local profile without an active token
-            localStorage.removeItem('brightloop_local_profile');
-            setProfile(null);
-            setUser(null);
-            setSession(null);
+            if (DEMO_MODE_ENABLED) {
+              const saved = localStorage.getItem('brightloop_local_profile');
+              if (saved) {
+                try {
+                  const parsed = JSON.parse(saved);
+                  setProfile(parsed);
+                  setUser({ id: parsed.id, email: parsed.email });
+                } catch {
+                  localStorage.removeItem('brightloop_local_profile');
+                }
+              }
+            } else {
+              localStorage.removeItem('brightloop_local_profile');
+              setProfile(null);
+              setUser(null);
+              setSession(null);
+            }
           }
         }
       } catch (err) {
@@ -135,6 +165,14 @@ export const AuthProvider = ({ children }) => {
 
       if (newSession?.access_token) {
         await fetchProfile();
+      } else if (DEMO_MODE_ENABLED && localStorage.getItem('brightloop_local_profile')) {
+        try {
+          const saved = JSON.parse(localStorage.getItem('brightloop_local_profile'));
+          setProfile(saved);
+        } catch {
+          localStorage.removeItem('brightloop_local_profile');
+          setProfile(null);
+        }
       } else {
         localStorage.removeItem('brightloop_local_profile');
         setProfile(null);
@@ -158,17 +196,33 @@ export const AuthProvider = ({ children }) => {
     });
 
     if (error) {
+      if (DEMO_MODE_ENABLED && DEMO_ACCOUNTS[cleanEmail] && password === 'Demo@Brightloop2026') {
+        const demoUser = DEMO_ACCOUNTS[cleanEmail];
+        setProfile(demoUser);
+        setUser({ id: demoUser.id, email: demoUser.email });
+        localStorage.setItem('brightloop_local_profile', JSON.stringify(demoUser));
+        return { success: true, profile: demoUser };
+      }
       throw new Error(error.message || 'Invalid email or password');
     }
 
     setSession(data.session);
     setUser(data.user);
     const verifiedProfile = await fetchProfile();
+    if (!verifiedProfile) {
+      await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+      throw new Error('Unable to verify your account profile. Please try again.');
+    }
     return { success: true, profile: verifiedProfile };
   };
 
   // Switch demo account directly with authentic Supabase credentials
   const loginAsDemo = async (role = 'admin') => {
+    if (!DEMO_MODE_ENABLED) {
+      throw new Error('Demo mode is disabled.');
+    }
     let email = 'admin@brightloop.example.com';
     if (role === 'staff') email = 'staff1@brightloop.example.com';
     if (role === 'customer') email = 'acme@brightloop.example.com';
@@ -249,6 +303,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         loginAsDemo,
+        demoModeEnabled: DEMO_MODE_ENABLED,
         registerCustomer,
         logout,
         resetPassword,

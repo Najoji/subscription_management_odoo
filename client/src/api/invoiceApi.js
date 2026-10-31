@@ -1,5 +1,6 @@
 import api from './axios.js';
 import { mockFallback } from './mockFallback.js';
+import { MOCK_MODE_ENABLED } from './mockMode.js';
 
 export const invoiceApi = {
   getInvoices: async (params = {}) => {
@@ -7,7 +8,7 @@ export const invoiceApi = {
       const res = await api.get('/invoices', { params });
       return res.data;
     } catch (err) {
-      if (err.status === 501 || err.status === 404) {
+      if (MOCK_MODE_ENABLED && err.status === 501) {
         return { success: true, ...mockFallback.getInvoices(params) };
       }
       throw err;
@@ -19,7 +20,7 @@ export const invoiceApi = {
       const res = await api.get(`/invoices/${id}`);
       return res.data;
     } catch (err) {
-      if (err.status === 501 || err.status === 404) {
+      if (MOCK_MODE_ENABLED && err.status === 501) {
         const item = mockFallback.getInvoiceById(id);
         if (item) return { success: true, data: item };
       }
@@ -32,7 +33,7 @@ export const invoiceApi = {
       const res = await api.post(`/invoices/${id}/confirm`);
       return res.data;
     } catch (err) {
-      if (err.status === 501 || err.status === 404) {
+      if (MOCK_MODE_ENABLED && err.status === 501) {
         const item = mockFallback.confirmInvoice(id);
         return { success: true, message: 'Invoice confirmed', data: item };
       }
@@ -45,7 +46,7 @@ export const invoiceApi = {
       const res = await api.post(`/invoices/${id}/cancel`);
       return res.data;
     } catch (err) {
-      if (err.status === 501 || err.status === 404) {
+      if (MOCK_MODE_ENABLED && err.status === 501) {
         const item = mockFallback.cancelInvoice(id);
         return { success: true, message: 'Invoice cancelled', data: item };
       }

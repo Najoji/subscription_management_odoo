@@ -1,0 +1,1 @@
+export const MOCK_MODE_ENABLED = import.meta.env.VITE_ENABLE_MOCK_FALLBACK === 'true';

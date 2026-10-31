@@ -565,7 +565,7 @@ export const convertQuotationToSubscription = async (id, {
     throw err;
   }
 
-  if (!['Accepted', 'Sent'].includes(quotation.status)) {
+  if (quotation.status !== 'Accepted') {
     const err = new Error(`Only Accepted quotations can be converted to a subscription. Current status is '${quotation.status}'.`);
     err.statusCode = 400;
     throw err;
@@ -633,69 +633,51 @@ export const convertQuotationToSubscription = async (id, {
     if (!existing) isUnique = true;
   }
 
-  // 1. Insert subscription
-  const { data: subscription, error: subError } = await supabaseAdmin
-    .from('subscriptions')
-    .insert([
-      {
+  const { data: subscriptionId, error: conversionError } = await supabaseAdmin.rpc(
+    'convert_quotation_atomic',
+    {
+      p_quotation_id: quotation.id,
+      p_subscription: {
         subscription_number: subNumber,
         customer_id: quotation.customer_id,
         plan_id: effectivePlanId,
-        quotation_id: quotation.id,
         start_date: effectiveStartDate,
         expiry_date: expiryDate || null,
         next_billing_date: nextBillingDate,
         payment_terms: paymentTerms || 'Due Upon Receipt',
-        status: 'Confirmed',
       },
-    ])
+      p_items: quotation.quotation_items.map((qi) => ({
+        product_id: qi.product_id,
+        variant_id: qi.variant_id,
+        description: qi.description,
+        quantity: qi.quantity,
+        unit_price: qi.unit_price,
+      })),
+    }
+  );
+
+  if (conversionError) throw conversionError;
+
+  const { data: subscription, error: fetchError } = await supabaseAdmin
+    .from('subscriptions')
     .select(`
       *,
       customer:customer_id (id, full_name, email, phone),
-      plan:plan_id (*)
+      plan:plan_id (*),
+      subscription_items (
+        *,
+        product:product_id (id, name, sales_price),
+        variant:variant_id (id, name, extra_price)
+      )
     `)
+    .eq('id', subscriptionId)
     .single();
 
-  if (subError) throw subError;
-
-  // 2. Insert subscription items preserving agreed snapshot unit_price
-  const subItemsPayload = quotation.quotation_items.map((qi) => ({
-    subscription_id: subscription.id,
-    product_id: qi.product_id,
-    variant_id: qi.variant_id,
-    description: qi.description,
-    quantity: qi.quantity,
-    unit_price: qi.unit_price,
-  }));
-
-  const { data: insertedSubItems, error: subItemsError } = await supabaseAdmin
-    .from('subscription_items')
-    .insert(subItemsPayload)
-    .select(`
-      *,
-      product:product_id (id, name, sales_price),
-      variant:variant_id (id, name, extra_price)
-    `);
-
-  if (subItemsError) throw subItemsError;
-
-  // 3. Mark quotation as Converted with link to new subscription
-  const { error: quoteUpdateError } = await supabaseAdmin
-    .from('quotations')
-    .update({
-      status: 'Converted',
-      converted_subscription_id: subscription.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', quotation.id);
-
-  if (quoteUpdateError) {
-    console.error('Failed to link subscription back to quotation:', quoteUpdateError);
-  }
+  if (fetchError || !subscription) throw fetchError || new Error('Converted subscription could not be loaded.');
 
   return {
     ...subscription,
-    subscription_items: insertedSubItems || [],
+    subscription_items: subscription.subscription_items || [],
   };
 };
 

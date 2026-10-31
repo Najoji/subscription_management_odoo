@@ -1,5 +1,6 @@
 import api from './axios.js';
 import { mockFallback } from './mockFallback.js';
+import { MOCK_MODE_ENABLED } from './mockMode.js';
 
 export const billingApi = {
   runBilling: async (asOfDate) => {
@@ -7,7 +8,7 @@ export const billingApi = {
       const res = await api.post('/billing/run', { asOfDate });
       return res.data;
     } catch (err) {
-      if (err.status === 501 || err.status === 404) {
+      if (MOCK_MODE_ENABLED && err.status === 501) {
         const result = mockFallback.runBilling(asOfDate);
         return {
           success: true,

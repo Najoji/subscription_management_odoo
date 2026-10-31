@@ -249,11 +249,31 @@ export const runBillingEngine = async ({
           amount_paid: '0.00',
         };
 
-        const { data: createdInvoice, error: invError } = await supabaseAdmin
-          .from('invoices')
-          .insert([invoicePayload])
-          .select()
-          .single();
+        const nextBillingDate = periodEnd;
+        const shouldCloseSubscription = Boolean(
+          plan.auto_close && subscription.expiry_date && nextBillingDate >= subscription.expiry_date
+        );
+
+        const { data: createdInvoice, error: invError } = await supabaseAdmin.rpc(
+          'create_billing_invoice_atomic',
+          {
+            p_invoice: invoicePayload,
+            p_items: pricingResult.items.map((line) => ({
+              product_id: line.productId,
+              variant_id: line.variantId || null,
+              description: line.description,
+              quantity: line.quantity,
+              unit_price: line.unitPrice,
+              line_subtotal: line.lineSubtotal,
+              tax_rate: line.taxRate,
+              tax_amount: line.taxAmount,
+              line_total: line.lineTotal,
+            })),
+            p_subscription_id: subscription.id,
+            p_next_billing_date: nextBillingDate,
+            p_close_subscription: shouldCloseSubscription,
+          }
+        );
 
         if (invError) {
           // Handle unique constraint conflict gracefully
@@ -269,39 +289,7 @@ export const runBillingEngine = async ({
           throw invError;
         }
 
-        // 6. Create snapshot invoice items
-        const invoiceItemPayloads = pricingResult.items.map((line) => ({
-          invoice_id: createdInvoice.id,
-          product_id: line.productId,
-          variant_id: line.variantId || null,
-          description: line.description,
-          quantity: line.quantity,
-          unit_price: line.unitPrice,
-          line_subtotal: line.lineSubtotal,
-          tax_rate: line.taxRate,
-          tax_amount: line.taxAmount,
-          line_total: line.lineTotal,
-        }));
-
-        const { error: itemsError } = await supabaseAdmin
-          .from('invoice_items')
-          .insert(invoiceItemPayloads);
-
-        if (itemsError) {
-          // Rollback invoice if items failed
-          await supabaseAdmin.from('invoices').delete().eq('id', createdInvoice.id);
-          throw itemsError;
-        }
-
-        // 7. Advance subscription next_billing_date
-        currentPeriodStart = periodEnd;
-        await supabaseAdmin
-          .from('subscriptions')
-          .update({
-            next_billing_date: currentPeriodStart,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', subscription.id);
+        currentPeriodStart = nextBillingDate;
 
         summary.invoicesGenerated++;
         summary.invoices.push({
@@ -315,13 +303,7 @@ export const runBillingEngine = async ({
         });
 
         // Check if expiry date reached after advancing
-        if (subscription.expiry_date && currentPeriodStart >= subscription.expiry_date) {
-          if (plan.auto_close) {
-            await supabaseAdmin
-              .from('subscriptions')
-              .update({ status: 'Closed', closed_at: new Date().toISOString() })
-              .eq('id', subscription.id);
-          }
+        if (shouldCloseSubscription) {
           break;
         }
       }

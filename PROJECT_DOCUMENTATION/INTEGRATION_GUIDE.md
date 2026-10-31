@@ -27,6 +27,9 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 VITE_API_BASE_URL=http://localhost:5000/api
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
+# Optional local/demo-only flags. Leave unset or false for production builds.
+VITE_ENABLE_DEMO_MODE=false
+VITE_ENABLE_MOCK_FALLBACK=false
 ```
 
 ## 3. How to Connect Backend Modules (Members 2 & 3)

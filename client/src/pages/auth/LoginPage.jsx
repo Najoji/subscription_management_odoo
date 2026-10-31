@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, logout } = useAuth();
+  const { login, logout, demoModeEnabled } = useAuth();
   const { success, error, info } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -95,7 +95,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (selectedRole === 'staff' && actualRole !== 'staff' && actualRole !== 'admin') {
+      if (selectedRole === 'staff' && actualRole !== 'staff') {
         await logout();
         error(`Access Denied: This account is registered as '${actualRole.toUpperCase()}' and does not have Staff access. Please select the '${actualRole.charAt(0).toUpperCase() + actualRole.slice(1)}' tab.`);
         return;
@@ -186,7 +186,7 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
+          {demoModeEnabled && <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
             <span className="text-[11px] opacity-70">Demo Credentials:</span>
             <button
               type="button"
@@ -195,7 +195,7 @@ export default function LoginPage() {
             >
               Auto-fill {selectedRole.toUpperCase()} credentials
             </button>
-          </div>
+          </div>}
         </div>
       </div>
 

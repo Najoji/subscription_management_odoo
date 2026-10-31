@@ -167,6 +167,15 @@ test('Subscription Validation: requires customerId, planId, startDate, and valid
     items: [{ productId: 'f47ac10b-58cc-4372-a567-0e02b2c3d477', quantity: 1 }],
   });
   assert.strictEqual(validSub.length, 0);
+
+  const invalidInitialStatus = validateCreateSubscription({
+    customerId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    planId: 'f47ac10b-58cc-4372-a567-0e02b2c3d478',
+    startDate: '2026-11-01',
+    status: 'Active',
+    items: [{ productId: 'f47ac10b-58cc-4372-a567-0e02b2c3d477', quantity: 1 }],
+  });
+  assert.ok(invalidInitialStatus.some((e) => e.includes('status must be one of: Confirmed')));
 });
 
 test('Subscription Status Validation: valid statuses accepted', () => {

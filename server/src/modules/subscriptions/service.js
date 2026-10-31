@@ -190,6 +190,12 @@ export const createSubscriptionDirectly = async ({
   items = [],
   status = 'Confirmed',
 }, user) => {
+  if (status !== 'Confirmed') {
+    const err = new Error("Direct subscription creation only supports the 'Confirmed' initial status.");
+    err.statusCode = 400;
+    throw err;
+  }
+
   // Validate customer existence
   const { data: customer, error: custError } = await supabaseAdmin
     .from('profiles')
@@ -306,52 +312,46 @@ export const createSubscriptionDirectly = async ({
   const nextBillingDate = effectiveStartDate;
   const subNumber = await generateSubscriptionNumber();
 
-  const { data: subscription, error: subError } = await supabaseAdmin
-    .from('subscriptions')
-    .insert([
-      {
+  const { data: subscriptionId, error: subError } = await supabaseAdmin.rpc(
+    'create_subscription_atomic',
+    {
+      p_subscription: {
         subscription_number: subNumber,
         customer_id: customerId,
         plan_id: planId,
+        quotation_id: null,
         start_date: effectiveStartDate,
         expiry_date: expiryDate || null,
         next_billing_date: nextBillingDate,
         payment_terms: paymentTerms || 'Due Upon Receipt',
         status: status || 'Confirmed',
       },
-    ])
-    .select(`
-      *,
-      customer:customer_id (id, full_name, email, phone),
-      plan:plan_id (*)
-    `)
-    .single();
+      p_items: processedItems,
+    }
+  );
 
   if (subError) throw subError;
 
-  const itemsPayload = processedItems.map((pi) => ({
-    subscription_id: subscription.id,
-    product_id: pi.product_id,
-    variant_id: pi.variant_id,
-    description: pi.description,
-    quantity: pi.quantity,
-    unit_price: pi.unit_price,
-  }));
-
-  const { data: insertedItems, error: itemsError } = await supabaseAdmin
-    .from('subscription_items')
-    .insert(itemsPayload)
+  const { data: subscription, error: fetchError } = await supabaseAdmin
+    .from('subscriptions')
     .select(`
       *,
-      product:product_id (id, name, sales_price),
-      variant:variant_id (id, name, extra_price)
-    `);
+      customer:customer_id (id, full_name, email, phone),
+      plan:plan_id (*),
+      subscription_items (
+        *,
+        product:product_id (id, name, sales_price),
+        variant:variant_id (id, name, extra_price)
+      )
+    `)
+    .eq('id', subscriptionId)
+    .single();
 
-  if (itemsError) throw itemsError;
+  if (fetchError || !subscription) throw fetchError || new Error('Created subscription could not be loaded.');
 
   return {
     ...subscription,
-    subscription_items: insertedItems || [],
+    subscription_items: subscription.subscription_items || [],
   };
 };
 

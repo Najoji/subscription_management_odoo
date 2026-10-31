@@ -106,90 +106,29 @@ export const recordPayment = async ({
     throw new Error('Payment amount must be greater than zero.');
   }
 
-  // 1. Fetch current invoice state
-  const { data: invoice, error: invError } = await supabaseAdmin
-    .from('invoices')
-    .select('*')
-    .eq('id', invoiceId)
-    .single();
+  const { data, error: paymentError } = await supabaseAdmin.rpc('record_payment_atomic', {
+    p_invoice_id: invoiceId,
+    p_method: matchedMethod,
+    p_amount: dAmount.toFixed(2),
+    p_payment_date: paymentDate,
+    p_note: note || null,
+    p_received_by: receivedBy || null,
+  });
 
-  if (invError || !invoice) {
-    throw new Error(`Invoice with ID ${invoiceId} not found.`);
-  }
+  if (paymentError) throw paymentError;
 
-  // 2. Validate invoice status
-  if (invoice.status === 'Cancelled') {
-    throw new Error('Cannot record payments against a Cancelled invoice.');
-  }
-
-  if (invoice.status === 'Paid') {
-    throw new Error('Invoice is already fully Paid.');
-  }
-
-  const currentPaid = round2(invoice.amount_paid || 0);
-  const totalAmount = round2(invoice.total || 0);
-  const remainingBalance = round2(Decimal.max(0, totalAmount.minus(currentPaid)));
-
-  if (remainingBalance.lessThanOrEqualTo(0)) {
-    throw new Error('Invoice has no outstanding balance.');
-  }
-
-  if (dAmount.greaterThan(remainingBalance)) {
-    throw new Error(
-      `Payment amount ₹${dAmount.toFixed(2)} exceeds remaining invoice balance of ₹${remainingBalance.toFixed(2)}.`
-    );
-  }
-
-  // 3. Insert payment record
-  const { data: payment, error: payError } = await supabaseAdmin
-    .from('payments')
-    .insert([
-      {
-        invoice_id: invoiceId,
-        method: matchedMethod,
-        amount: dAmount.toFixed(2),
-        payment_date: paymentDate,
-        note: note || null,
-        received_by: receivedBy || null,
-      },
-    ])
-    .select()
-    .single();
-
-  if (payError) throw payError;
-
-  // 4. Update invoice amount_paid and status
-  const newAmountPaid = round2(currentPaid.plus(dAmount));
-  const newBalance = round2(Decimal.max(0, totalAmount.minus(newAmountPaid)));
-  
-  // Rule: Mark invoice Paid only when full amount is collected, otherwise remain Confirmed
-  const newStatus = newBalance.isZero() ? 'Paid' : 'Confirmed';
-
-  const { data: updatedInvoice, error: updateError } = await supabaseAdmin
-    .from('invoices')
-    .update({
-      amount_paid: newAmountPaid.toFixed(2),
-      status: newStatus,
-    })
-    .eq('id', invoiceId)
-    .select(`
-      *,
-      profiles:customer_id (id, full_name, email)
-    `)
-    .single();
-
-  if (updateError) {
-    console.error('Failed to update invoice status after payment:', updateError);
-    throw updateError;
-  }
+  const updatedInvoice = data.invoice;
+  const newBalance = round2(
+    Decimal.max(0, new Decimal(updatedInvoice.total).minus(updatedInvoice.amount_paid))
+  );
 
   return {
-    payment,
+    payment: data.payment,
     invoice: {
       ...updatedInvoice,
       balance: newBalance.toFixed(2),
     },
     remainingBalance: newBalance.toFixed(2),
-    isFullyPaid: newStatus === 'Paid',
+    isFullyPaid: data.isFullyPaid,
   };
 };

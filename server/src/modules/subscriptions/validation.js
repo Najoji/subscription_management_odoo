@@ -6,6 +6,11 @@ export const isValidUUID = (id) => typeof id === 'string' && UUID_REGEX.test(id)
 
 export const validateCreateSubscription = (body) => {
   const errors = [];
+  const allowedInitialStatuses = ['Confirmed'];
+
+  if (body.status && !allowedInitialStatuses.includes(body.status)) {
+    errors.push(`status must be one of: ${allowedInitialStatuses.join(', ')} when creating a subscription.`);
+  }
 
   if (!body.customerId) {
     errors.push('customerId is required.');

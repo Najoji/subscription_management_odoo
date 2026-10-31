@@ -5,6 +5,7 @@ import Button from '../../components/common/Button.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
 import LoadingSpinner from '../../components/common/LoadingSpinner.jsx';
+import { COMPANY_CONFIG } from '../../config/company.js';
 import { subscriptionApi } from '../../api/subscriptionApi.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -12,6 +13,7 @@ import { formatCurrency, formatDate } from '../../utils/formatters.js';
 import {
   Repeat,
   ArrowLeft,
+  Mail,
   Play,
   Pause,
   XCircle,
@@ -176,6 +178,21 @@ export default function SubscriptionDetailPage() {
           </div>
         )}
       </div>
+
+      {isCustomer && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-amber-900/50 bg-amber-950/20 px-4 py-3 text-xs">
+          <div>
+            <p className="font-semibold text-amber-200">Need to change or cancel this subscription?</p>
+            <p className="mt-1 text-slate-400">Contact support so your request can be reviewed against the contract terms.</p>
+          </div>
+          <a
+            href={`mailto:${COMPANY_CONFIG.supportEmail}?subject=${encodeURIComponent(`Subscription ${subscription.subscriptionNumber || subscription.subscription_number || id} change request`)}`}
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-700/60 px-3 py-2 font-semibold text-amber-300 transition-colors hover:bg-amber-900/30 hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          >
+            <Mail className="h-3.5 w-3.5" /> Contact Support
+          </a>
+        </div>
+      )}
 
       {/* Main Details Sheet */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-10 shadow-lg space-y-8">

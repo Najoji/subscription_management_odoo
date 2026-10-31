@@ -1,5 +1,6 @@
 import api from './axios.js';
 import { mockFallback } from './mockFallback.js';
+import { MOCK_MODE_ENABLED } from './mockMode.js';
 
 export const discountApi = {
   getDiscounts: async (params = {}) => {
@@ -7,7 +8,7 @@ export const discountApi = {
       const res = await api.get('/discounts', { params });
       return res.data;
     } catch (err) {
-      if (err.status === 501 || err.status === 404) {
+      if (MOCK_MODE_ENABLED && err.status === 501) {
         return { success: true, ...mockFallback.getDiscounts() };
       }
       throw err;
@@ -19,7 +20,7 @@ export const discountApi = {
       const res = await api.post('/discounts', payload);
       return res.data;
     } catch (err) {
-      if (err.status === 501 || err.status === 404) {
+      if (MOCK_MODE_ENABLED && err.status === 501) {
         const item = mockFallback.createDiscount(payload);
         return { success: true, message: 'Discount created', data: item };
       }
