@@ -23,7 +23,7 @@ export const validatePassword = (password) => {
 // Built-in demo accounts for emergency testing or local demo without active internet/Supabase
 const DEMO_ACCOUNTS = {
   'admin@brightloop.com': {
-    id: '00000000-0000-0000-0000-000000000001',
+    id: 'ee65bf70-5488-4e80-93e1-7a409d09e500',
     email: 'admin@brightloop.com',
     fullName: 'System Administrator',
     role: 'admin',
@@ -35,6 +35,13 @@ const DEMO_ACCOUNTS = {
     fullName: 'Operations Staff',
     role: 'staff',
     phone: '+91 98765 43211',
+  },
+  'customer@brightloop.com': {
+    id: '00000000-0000-0000-0000-000000000003',
+    email: 'customer@brightloop.com',
+    fullName: 'Acme Enterprise Customer',
+    role: 'customer',
+    phone: '+91 98765 43212',
   },
   'customer@example.com': {
     id: '00000000-0000-0000-0000-000000000003',
@@ -168,9 +175,9 @@ export const AuthProvider = ({ children }) => {
   const loginAsDemo = (role = 'admin') => {
     let email = 'admin@brightloop.com';
     if (role === 'staff') email = 'staff@brightloop.com';
-    if (role === 'customer') email = 'customer@example.com';
+    if (role === 'customer') email = 'customer@brightloop.com';
 
-    const demoUser = DEMO_ACCOUNTS[email];
+    const demoUser = DEMO_ACCOUNTS[email] || DEMO_ACCOUNTS['customer@example.com'];
     setProfile(demoUser);
     setUser({ id: demoUser.id, email: demoUser.email });
     localStorage.setItem('brightloop_local_profile', JSON.stringify(demoUser));
