@@ -52,4 +52,22 @@ export const invoiceApi = {
       throw err;
     }
   },
+
+  downloadPdf: async (id, invoiceNumber) => {
+    const res = await api.get(`/invoices/${id}/pdf`, {
+      responseType: 'blob',
+    });
+
+    const blob = new Blob([res.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const safeNumber = (invoiceNumber || 'INV').replace(/[^a-zA-Z0-9_-]/g, '_');
+    link.download = `Invoice-${safeNumber}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    return true;
+  },
 };

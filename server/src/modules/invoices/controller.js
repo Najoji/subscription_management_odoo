@@ -1,4 +1,5 @@
 import * as invoiceService from './service.js';
+import { generateInvoicePdf } from './pdfService.js';
 import { sendSuccess, sendError } from '../../utils/apiResponse.js';
 
 export const listInvoices = async (req, res) => {
@@ -45,6 +46,25 @@ export const getInvoiceById = async (req, res) => {
     console.error('Error fetching invoice:', err);
     const statusCode = err.message.includes('Access denied') ? 403 : 404;
     return sendError(res, err.message || 'Failed to fetch invoice details', statusCode);
+  }
+};
+
+export const downloadInvoicePdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const invoice = await invoiceService.getInvoiceById(id, req.user);
+
+    const safeNumber = (invoice.invoice_number || 'INV-DRAFT').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `Invoice-${safeNumber}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    generateInvoicePdf(invoice, res);
+  } catch (err) {
+    console.error('Error downloading invoice PDF:', err);
+    const statusCode = err.message.includes('Access denied') ? 403 : 404;
+    return sendError(res, err.message || 'Failed to generate invoice PDF', statusCode);
   }
 };
 
