@@ -146,10 +146,16 @@ Base URL: `http://localhost:5000/api`
 ## 5. Quotations (Owner: Member 2)
 
 ### `GET /api/quotations`
-- **Query**: `status`, `customerId`, `page`, `limit`, `search`
+- **Role**: `admin`, `staff`, `customer` (customers automatically scoped to their own quotations)
+- **Query**: `status`, `customerId`, `page`, `limit`, `search`, `startDate`, `endDate`
+- **Response**: List of quotations with customer profile, plan, creator, and items snapshot.
+
+### `GET /api/quotations/:id`
+- **Role**: `admin`, `staff`, `customer` (customer ownership strictly enforced)
+- **Response**: Full quotation details, item lines, snapshot pricing, customer, plan, and template.
 
 ### `POST /api/quotations`
-- **Role**: `admin`, `staff`
+- **Role**: `admin`, `staff`, `customer` (if customer, `customerId` is automatically derived from token)
 - **Body**:
 ```json
 {
@@ -168,36 +174,102 @@ Base URL: `http://localhost:5000/api`
   ]
 }
 ```
-
-### `GET /api/quotations/:id`
-- Full quotation details, item lines, snapshot pricing.
+*Note: Backend computes prices from products and variants tables. Frontend unit prices are never trusted.*
 
 ### `PATCH /api/quotations/:id/status`
+- **Role**: `admin`, `staff`, `customer`
+  - Customers can transition `Sent` -> `Accepted` or `Rejected` for their own quotations.
+  - Staff/admin can transition `Draft` -> `Sent`/`Rejected`, `Sent` -> `Accepted`/`Rejected`/`Expired`/`Draft`, etc.
 - **Body**: `{ "status": "Accepted" }` (Valid: Draft, Sent, Accepted, Rejected, Expired)
 
 ### `POST /api/quotations/:id/convert`
-- Converts accepted quotation to subscription.
+- **Role**: `admin`, `staff`
+- **Description**: Converts an accepted quotation to a subscription, creating the subscription and snapshot items, and marking quotation as `Converted` with `converted_subscription_id`.
 - **Body**:
 ```json
 {
+  "planId": "uuid-or-null-if-quotation-has-plan",
   "startDate": "2026-11-01",
   "expiryDate": "2027-10-31",
   "paymentTerms": "15 days"
 }
 ```
 
+### Quotation Templates
+
+#### `GET /api/quotations/templates`
+- **Role**: `admin`, `staff`, `customer`
+- Returns all reusable quotation templates with items and plan.
+
+#### `GET /api/quotations/templates/:id`
+- **Role**: `admin`, `staff`, `customer`
+
+#### `POST /api/quotations/templates`
+- **Role**: `admin`, `staff`
+- **Body**:
+```json
+{
+  "name": "Enterprise Bundle Template",
+  "planId": "uuid-or-null",
+  "items": [
+    {
+      "productId": "uuid",
+      "variantId": "uuid-or-null",
+      "quantity": 1
+    }
+  ]
+}
+```
+
+#### `DELETE /api/quotations/templates/:id`
+- **Role**: `admin`, `staff`
+
 ---
 
 ## 6. Subscriptions (Owner: Member 2)
 
 ### `GET /api/subscriptions`
-- **Query**: `status`, `customerId`, `planId`, `page`, `limit`
+- **Role**: `admin`, `staff`, `customer` (customers automatically scoped to their own subscriptions)
+- **Query**: `status`, `customerId`, `planId`, `search`, `page`, `limit`, `startDate`, `expiryDate`
 
 ### `GET /api/subscriptions/:id`
-- Full subscription details with items, plan details, and customer information.
+- **Role**: `admin`, `staff`, `customer` (customer ownership strictly enforced)
+- Full subscription details with items, plan details, customer information, and associated invoices.
+
+### `POST /api/subscriptions`
+- **Role**: `admin`, `staff`
+- **Description**: Direct creation of a subscription by staff.
+- **Body**:
+```json
+{
+  "customerId": "uuid",
+  "planId": "uuid",
+  "startDate": "2026-11-01",
+  "expiryDate": "2027-10-31",
+  "paymentTerms": "Due Upon Receipt",
+  "status": "Confirmed",
+  "items": [
+    {
+      "productId": "uuid",
+      "variantId": "uuid-or-null",
+      "quantity": 1
+    }
+  ]
+}
+```
 
 ### `PATCH /api/subscriptions/:id/status`
+- **Role**: `admin`, `staff`
 - **Body**: `{ "status": "Active" }` (Valid: Draft, Quotation, Confirmed, Active, Paused, Closed)
+- Enforces plan permissions (`allow_pause`, `allow_early_close`).
+
+### Dedicated Lifecycle Action Endpoints:
+- `POST /api/subscriptions/:id/confirm` — Transitions subscription to `Confirmed`.
+- `POST /api/subscriptions/:id/activate` — Transitions subscription to `Active` (eligible for recurring billing).
+- `POST /api/subscriptions/:id/pause` — Transitions to `Paused` (validates `plan.allow_pause`).
+- `POST /api/subscriptions/:id/resume` — Transitions from `Paused` back to `Active`.
+- `POST /api/subscriptions/:id/close` — Transitions to `Closed` (validates `plan.allow_early_close` if closing before expiry). Sets `closed_at`.
+- `POST /api/subscriptions/:id/renew` — Renews expired/closed subscription (validates `plan.allow_renewal`). Body (optional): `{ "newExpiryDate": "2027-10-31" }`. Sets status to `Active`.
 
 ---
 
