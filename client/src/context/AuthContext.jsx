@@ -29,6 +29,13 @@ const DEMO_ACCOUNTS = {
     role: 'admin',
     phone: '+91 98765 43210',
   },
+  'admin@brightloop.example.com': {
+    id: 'ee65bf70-5488-4e80-93e1-7a409d09e500',
+    email: 'admin@brightloop.example.com',
+    fullName: 'System Administrator',
+    role: 'admin',
+    phone: '+91 98765 43210',
+  },
   'staff@brightloop.com': {
     id: '00000000-0000-0000-0000-000000000002',
     email: 'staff@brightloop.com',
@@ -36,10 +43,24 @@ const DEMO_ACCOUNTS = {
     role: 'staff',
     phone: '+91 98765 43211',
   },
+  'staff1@brightloop.example.com': {
+    id: '00000000-0000-0000-0000-000000000002',
+    email: 'staff1@brightloop.example.com',
+    fullName: 'Operations Staff Lead',
+    role: 'staff',
+    phone: '+91 98765 43211',
+  },
   'customer@brightloop.com': {
     id: '00000000-0000-0000-0000-000000000003',
     email: 'customer@brightloop.com',
     fullName: 'Acme Enterprise Customer',
+    role: 'customer',
+    phone: '+91 98765 43212',
+  },
+  'acme@brightloop.example.com': {
+    id: '00000000-0000-0000-0000-000000000003',
+    email: 'acme@brightloop.example.com',
+    fullName: 'Acme Technologies Pvt Ltd',
     role: 'customer',
     phone: '+91 98765 43212',
   },
@@ -144,7 +165,7 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         // If Supabase failed (e.g. invalid credentials or network/placeholder key), check DEMO_ACCOUNTS
-        if (DEMO_ACCOUNTS[cleanEmail] && (password === 'Password123!' || password === 'Admin@1234' || password === 'Demo@1234')) {
+        if (DEMO_ACCOUNTS[cleanEmail] && (password === 'Password123!' || password === 'Admin@1234' || password === 'Demo@1234' || password === 'Demo@Brightloop2026' || password === 'Brightloop@2026')) {
           const demoUser = DEMO_ACCOUNTS[cleanEmail];
           setProfile(demoUser);
           setUser({ id: demoUser.id, email: demoUser.email });
