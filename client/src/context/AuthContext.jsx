@@ -89,14 +89,11 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       console.warn('Could not fetch backend profile (/api/auth/me):', err.message);
-      // Check if session has demo user or local profile saved
-      const saved = localStorage.getItem('brightloop_local_profile');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setProfile(parsed);
-          return parsed;
-        } catch {}
+      if (err.status === 401 || err.response?.status === 401) {
+        localStorage.removeItem('brightloop_local_profile');
+        setProfile(null);
+        setUser(null);
+        setSession(null);
       }
     }
     return null;
@@ -110,18 +107,16 @@ export const AuthProvider = ({ children }) => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (mounted) {
-          if (currentSession) {
+          if (currentSession?.access_token) {
             setSession(currentSession);
             setUser(currentSession.user);
             await fetchProfile();
           } else {
-            // Check local demo profile
-            const saved = localStorage.getItem('brightloop_local_profile');
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              setProfile(parsed);
-              setUser({ id: parsed.id, email: parsed.email });
-            }
+            // Clean up any phantom local profile without an active token
+            localStorage.removeItem('brightloop_local_profile');
+            setProfile(null);
+            setUser(null);
+            setSession(null);
           }
         }
       } catch (err) {
@@ -138,9 +133,10 @@ export const AuthProvider = ({ children }) => {
       setSession(newSession);
       setUser(newSession?.user || null);
 
-      if (newSession) {
+      if (newSession?.access_token) {
         await fetchProfile();
-      } else if (!localStorage.getItem('brightloop_local_profile')) {
+      } else {
+        localStorage.removeItem('brightloop_local_profile');
         setProfile(null);
       }
       setLoading(false);
@@ -152,57 +148,32 @@ export const AuthProvider = ({ children }) => {
     };
   }, [fetchProfile]);
 
-  // Sign In
+  // Sign In with Supabase Auth
   const login = async ({ email, password }) => {
-    // Check if this matches a demo account for quick hackathon switch
     const cleanEmail = email.trim().toLowerCase();
     
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
 
-      if (error) {
-        // If Supabase failed (e.g. invalid credentials or network/placeholder key), check DEMO_ACCOUNTS
-        if (DEMO_ACCOUNTS[cleanEmail] && (password === 'Password123!' || password === 'Admin@1234' || password === 'Demo@1234' || password === 'Demo@Brightloop2026' || password === 'Brightloop@2026')) {
-          const demoUser = DEMO_ACCOUNTS[cleanEmail];
-          setProfile(demoUser);
-          setUser({ id: demoUser.id, email: demoUser.email });
-          localStorage.setItem('brightloop_local_profile', JSON.stringify(demoUser));
-          return { success: true, profile: demoUser };
-        }
-        throw new Error(error.message);
-      }
-
-      setSession(data.session);
-      setUser(data.user);
-      const verifiedProfile = await fetchProfile();
-      return { success: true, profile: verifiedProfile };
-    } catch (err) {
-      // Check fallback for demo mode
-      if (DEMO_ACCOUNTS[cleanEmail]) {
-        const demoUser = DEMO_ACCOUNTS[cleanEmail];
-        setProfile(demoUser);
-        setUser({ id: demoUser.id, email: demoUser.email });
-        localStorage.setItem('brightloop_local_profile', JSON.stringify(demoUser));
-        return { success: true, profile: demoUser };
-      }
-      throw err;
+    if (error) {
+      throw new Error(error.message);
     }
+
+    setSession(data.session);
+    setUser(data.user);
+    const verifiedProfile = await fetchProfile();
+    return { success: true, profile: verifiedProfile };
   };
 
-  // Switch demo account directly (useful during hackathon review)
-  const loginAsDemo = (role = 'admin') => {
-    let email = 'admin@brightloop.com';
-    if (role === 'staff') email = 'staff@brightloop.com';
-    if (role === 'customer') email = 'customer@brightloop.com';
+  // Switch demo account directly with authentic Supabase credentials
+  const loginAsDemo = async (role = 'admin') => {
+    let email = 'admin@brightloop.example.com';
+    if (role === 'staff') email = 'staff1@brightloop.example.com';
+    if (role === 'customer') email = 'acme@brightloop.example.com';
 
-    const demoUser = DEMO_ACCOUNTS[email] || DEMO_ACCOUNTS['customer@example.com'];
-    setProfile(demoUser);
-    setUser({ id: demoUser.id, email: demoUser.email });
-    localStorage.setItem('brightloop_local_profile', JSON.stringify(demoUser));
-    return demoUser;
+    return login({ email, password: 'Demo@Brightloop2026' });
   };
 
   // Sign Up (Customer Registration)
