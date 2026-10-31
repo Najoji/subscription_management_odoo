@@ -4,36 +4,9 @@ import { Layers, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function AuthLayout({ children, title, subtitle }) {
-  const { loginAsDemo } = useAuth();
-
   return (
     <div className="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white">
-      {/* Top Demo Shortcut Banner */}
-      <div className="bg-indigo-950/80 border-b border-indigo-900/50 px-4 py-2 text-center text-xs text-indigo-200 flex flex-wrap items-center justify-center gap-3">
-        <span className="font-semibold flex items-center gap-1.5 text-indigo-300">
-          <ShieldCheck className="w-3.5 h-3.5" /> Hackathon Demo Quick Switcher:
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => loginAsDemo('admin')}
-            className="px-2.5 py-0.5 rounded bg-indigo-600/60 hover:bg-indigo-600 text-white font-medium transition-colors text-[11px]"
-          >
-            Login as Admin
-          </button>
-          <button
-            onClick={() => loginAsDemo('staff')}
-            className="px-2.5 py-0.5 rounded bg-blue-600/60 hover:bg-blue-600 text-white font-medium transition-colors text-[11px]"
-          >
-            Login as Staff
-          </button>
-          <button
-            onClick={() => loginAsDemo('customer')}
-            className="px-2.5 py-0.5 rounded bg-emerald-600/60 hover:bg-emerald-600 text-white font-medium transition-colors text-[11px]"
-          >
-            Login as Customer
-          </button>
-        </div>
-      </div>
+
 
       {/* Main Container */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">

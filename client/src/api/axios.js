@@ -28,6 +28,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('brightloop_local_profile');
+    }
     const errorMsg = error.response?.data?.message || error.message || 'API request failed';
     const customError = new Error(errorMsg);
     customError.response = error.response;
