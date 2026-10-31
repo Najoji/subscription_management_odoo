@@ -319,6 +319,35 @@ const runVerificationSuite = async () => {
       outstandingAmount: dashboard.outstandingAmount,
       revenueByPeriod: dashboard.revenueByPeriod,
     });
+    // -------------------------------------------------------------------------
+    // TEST 10: Security and Customer Data Isolation
+    // -------------------------------------------------------------------------
+    console.log('\n--- 10. Testing Customer Isolation & Security ---');
+    // Customer listing their own invoices should see their invoice
+    const customerSelfList = await invoiceService.listInvoices({
+      userRole: 'customer',
+      userId: customerId,
+    });
+    assertTrue(customerSelfList.invoices.length > 0, '10.1 Customer can view their own invoices');
+
+    // Customer with different ID should NOT see another customer's invoices
+    const otherCustomerList = await invoiceService.listInvoices({
+      userRole: 'customer',
+      userId: '00000000-0000-0000-0000-000000000000',
+    });
+    assertEqual(otherCustomerList.invoices.length, 0, '10.2 Customer cannot view other customers’ invoices in listing');
+
+    // Customer attempting direct GET on another customer's invoice ID
+    let directAccessBlocked = false;
+    try {
+      await invoiceService.getInvoiceById(createdInvId, {
+        id: '00000000-0000-0000-0000-000000000000',
+        role: 'customer',
+      });
+    } catch (err) {
+      directAccessBlocked = err.message.includes('Access denied');
+    }
+    assertTrue(directAccessBlocked, '10.3 Direct ID access to other customer’s invoice blocked with 403 Access denied');
 
     // -------------------------------------------------------------------------
     // Cleanup temporary test subscriptions to leave DB clean
