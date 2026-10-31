@@ -1,11 +1,22 @@
 import { Router } from 'express';
-import { sendError } from '../../utils/apiResponse.js';
+import { authenticateUser } from '../../middleware/auth.js';
+import { authorizeRoles } from '../../middleware/authorize.js';
+import * as invoiceController from './controller.js';
+import { recordPaymentForInvoice } from '../payments/controller.js';
 
 const router = Router();
 
-// Placeholder for Member 3's invoices module
-router.all('*', (req, res) => {
-  return sendError(res, 'Invoices module is currently being developed by Member 3.', 501);
-});
+router.use(authenticateUser);
+
+// Invoices listing and details
+router.get('/', invoiceController.listInvoices);
+router.get('/:id', invoiceController.getInvoiceById);
+
+// Staff and Admin operations
+router.post('/:id/confirm', authorizeRoles('admin', 'staff'), invoiceController.confirmInvoice);
+router.post('/:id/cancel', authorizeRoles('admin', 'staff'), invoiceController.cancelInvoice);
+
+// Record payment against an invoice (POST /api/invoices/:id/payments)
+router.post('/:id/payments', authorizeRoles('admin', 'staff'), recordPaymentForInvoice);
 
 export default router;

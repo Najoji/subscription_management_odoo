@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { sendError } from '../../utils/apiResponse.js';
+import { authenticateUser } from '../../middleware/auth.js';
+import { authorizeRoles } from '../../middleware/authorize.js';
+import * as billingController from './controller.js';
 
 const router = Router();
 
-// Placeholder for Member 3's billing module
-router.all('*', (req, res) => {
-  return sendError(res, 'Billing module is currently being developed by Member 3.', 501);
-});
+router.use(authenticateUser);
+
+// Billing runs can be triggered by Admin or Staff
+router.post('/run', authorizeRoles('admin', 'staff'), billingController.runBilling);
 
 export default router;
