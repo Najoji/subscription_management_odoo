@@ -201,14 +201,14 @@ export default function AdminDashboardPage() {
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white">{sub.subscriptionNumber || 'SUB'}</span>
+                      <span className="font-bold text-white">{sub.subscription_number || sub.subscriptionNumber || 'SUB'}</span>
                       <Badge status={sub.status} />
                     </div>
-                    <p className="text-slate-400 mt-0.5">{sub.customerName || 'Customer'}</p>
+                    <p className="text-slate-400 mt-0.5">{sub.customer?.full_name || sub.customerName || sub.customer?.name || sub.profiles?.full_name || 'Customer'}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-white">{formatCurrency(sub.total ?? sub.cycle_rate ?? 0)}</p>
-                    <p className="text-slate-500 text-[11px]">Due: {formatDate(sub.nextBillingDate || sub.next_billing_date)}</p>
+                    <p className="text-slate-500 text-[11px]">Due: {formatDate(sub.next_billing_date || sub.nextBillingDate)}</p>
                   </div>
                 </div>
               ))}
@@ -243,14 +243,14 @@ export default function AdminDashboardPage() {
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white">{inv.invoiceNumber || 'INV'}</span>
+                      <span className="font-bold text-white">{inv.invoice_number || inv.invoiceNumber || 'INV'}</span>
                       <Badge status={inv.status} />
                     </div>
-                    <p className="text-slate-400 mt-0.5">{inv.customerName || 'Customer'}</p>
+                    <p className="text-slate-400 mt-0.5">{inv.customer?.full_name || inv.customerName || inv.customer?.name || inv.profiles?.full_name || 'Customer'}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-white">{formatCurrency(inv.total)}</p>
-                    <p className="text-slate-500 text-[11px]">Due: {formatDate(inv.dueDate)}</p>
+                    <p className="text-slate-500 text-[11px]">Due: {formatDate(inv.due_date || inv.dueDate)}</p>
                   </div>
                 </div>
               ))}

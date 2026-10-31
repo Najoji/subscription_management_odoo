@@ -186,16 +186,16 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
-          {demoModeEnabled && <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
             <span className="text-[11px] opacity-70">Demo Credentials:</span>
             <button
               type="button"
               onClick={handleFillDemo}
-              className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 underline decoration-dotted transition-colors"
+              className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 underline decoration-dotted transition-colors cursor-pointer"
             >
               Auto-fill {selectedRole.toUpperCase()} credentials
             </button>
-          </div>}
+          </div>
         </div>
       </div>
 

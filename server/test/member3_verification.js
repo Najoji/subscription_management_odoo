@@ -353,8 +353,18 @@ const runVerificationSuite = async () => {
     // Cleanup temporary test subscriptions to leave DB clean
     // -------------------------------------------------------------------------
     console.log('\n--- Cleaning up test records ---');
-    await supabaseAdmin.from('invoices').delete().eq('id', invToCancel.id);
-    // Keep testSub / invoices for demo verification
+    const cleanupSubIds = [testSub?.id, overdueSub?.id].filter(Boolean);
+    if (cleanupSubIds.length > 0) {
+      const { data: testInvs } = await supabaseAdmin.from('invoices').select('id').in('subscription_id', cleanupSubIds);
+      if (testInvs?.length > 0) {
+        const invIds = testInvs.map(i => i.id);
+        await supabaseAdmin.from('payments').delete().in('invoice_id', invIds);
+        await supabaseAdmin.from('invoice_items').delete().in('invoice_id', invIds);
+        await supabaseAdmin.from('invoices').delete().in('id', invIds);
+      }
+      await supabaseAdmin.from('subscription_items').delete().in('subscription_id', cleanupSubIds);
+      await supabaseAdmin.from('subscriptions').delete().in('id', cleanupSubIds);
+    }
     console.log('Cleanup completed successfully.');
 
   } catch (err) {
