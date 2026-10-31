@@ -254,7 +254,8 @@ export const runBillingEngine = async ({
           plan.auto_close && subscription.expiry_date && nextBillingDate >= subscription.expiry_date
         );
 
-        const { data: createdInvoice, error: invError } = await supabaseAdmin.rpc(
+        let createdInvoice = null;
+        const { data: rpcInvoice, error: invError } = await supabaseAdmin.rpc(
           'create_billing_invoice_atomic',
           {
             p_invoice: invoicePayload,
@@ -286,7 +287,54 @@ export const runBillingEngine = async ({
               .eq('id', subscription.id);
             continue;
           }
-          throw invError;
+
+          // Fallback to direct database operations if migration 002 RPC is not in schema cache
+          if (invError.code === 'PGRST202' || invError.message?.includes('Could not find the function')) {
+            const { data: directInvoice, error: directInvErr } = await supabaseAdmin
+              .from('invoices')
+              .insert([invoicePayload])
+              .select()
+              .single();
+
+            if (directInvErr) throw directInvErr;
+
+            const invoiceItemPayloads = pricingResult.items.map((line) => ({
+              invoice_id: directInvoice.id,
+              product_id: line.productId,
+              variant_id: line.variantId || null,
+              description: line.description,
+              quantity: line.quantity,
+              unit_price: line.unitPrice,
+              line_subtotal: line.lineSubtotal,
+              tax_rate: line.taxRate,
+              tax_amount: line.taxAmount,
+              line_total: line.lineTotal,
+            }));
+
+            const { error: itemsError } = await supabaseAdmin
+              .from('invoice_items')
+              .insert(invoiceItemPayloads);
+
+            if (itemsError) {
+              await supabaseAdmin.from('invoices').delete().eq('id', directInvoice.id);
+              throw itemsError;
+            }
+
+            await supabaseAdmin
+              .from('subscriptions')
+              .update({
+                next_billing_date: nextBillingDate,
+                ...(shouldCloseSubscription ? { status: 'Closed', closed_at: new Date().toISOString() } : {}),
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', subscription.id);
+
+            createdInvoice = directInvoice;
+          } else {
+            throw invError;
+          }
+        } else {
+          createdInvoice = rpcInvoice;
         }
 
         currentPeriodStart = nextBillingDate;

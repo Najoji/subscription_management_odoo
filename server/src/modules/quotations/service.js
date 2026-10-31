@@ -633,6 +633,8 @@ export const convertQuotationToSubscription = async (id, {
     if (!existing) isUnique = true;
   }
 
+  let effectiveSubId = null;
+
   const { data: subscriptionId, error: conversionError } = await supabaseAdmin.rpc(
     'convert_quotation_atomic',
     {
@@ -656,7 +658,66 @@ export const convertQuotationToSubscription = async (id, {
     }
   );
 
-  if (conversionError) throw conversionError;
+  if (conversionError) {
+    if (conversionError.code === 'PGRST202' || conversionError.message?.includes('Could not find the function')) {
+      // 1. Insert subscription
+      const { data: directSub, error: subError } = await supabaseAdmin
+        .from('subscriptions')
+        .insert([
+          {
+            subscription_number: subNumber,
+            customer_id: quotation.customer_id,
+            plan_id: effectivePlanId,
+            quotation_id: quotation.id,
+            start_date: effectiveStartDate,
+            expiry_date: expiryDate || null,
+            next_billing_date: nextBillingDate,
+            payment_terms: paymentTerms || 'Due Upon Receipt',
+            status: 'Confirmed',
+          },
+        ])
+        .select()
+        .single();
+
+      if (subError) throw subError;
+
+      // 2. Insert subscription items
+      const subItemsPayload = quotation.quotation_items.map((qi) => ({
+        subscription_id: directSub.id,
+        product_id: qi.product_id,
+        variant_id: qi.variant_id,
+        description: qi.description,
+        quantity: qi.quantity,
+        unit_price: qi.unit_price,
+      }));
+
+      const { error: subItemsError } = await supabaseAdmin
+        .from('subscription_items')
+        .insert(subItemsPayload);
+
+      if (subItemsError) throw subItemsError;
+
+      // 3. Mark quotation as Converted
+      const { error: quoteUpdateError } = await supabaseAdmin
+        .from('quotations')
+        .update({
+          status: 'Converted',
+          converted_subscription_id: directSub.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', quotation.id);
+
+      if (quoteUpdateError) {
+        console.error('Failed to link subscription back to quotation:', quoteUpdateError);
+      }
+
+      effectiveSubId = directSub.id;
+    } else {
+      throw conversionError;
+    }
+  } else {
+    effectiveSubId = subscriptionId;
+  }
 
   const { data: subscription, error: fetchError } = await supabaseAdmin
     .from('subscriptions')
@@ -670,7 +731,7 @@ export const convertQuotationToSubscription = async (id, {
         variant:variant_id (id, name, extra_price)
       )
     `)
-    .eq('id', subscriptionId)
+    .eq('id', effectiveSubId)
     .single();
 
   if (fetchError || !subscription) throw fetchError || new Error('Converted subscription could not be loaded.');

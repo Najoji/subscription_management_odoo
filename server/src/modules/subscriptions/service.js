@@ -312,6 +312,8 @@ export const createSubscriptionDirectly = async ({
   const nextBillingDate = effectiveStartDate;
   const subNumber = await generateSubscriptionNumber();
 
+  let effectiveSubId = null;
+
   const { data: subscriptionId, error: subError } = await supabaseAdmin.rpc(
     'create_subscription_atomic',
     {
@@ -330,7 +332,49 @@ export const createSubscriptionDirectly = async ({
     }
   );
 
-  if (subError) throw subError;
+  if (subError) {
+    if (subError.code === 'PGRST202' || subError.message?.includes('Could not find the function')) {
+      const { data: directSub, error: directSubError } = await supabaseAdmin
+        .from('subscriptions')
+        .insert([
+          {
+            subscription_number: subNumber,
+            customer_id: customerId,
+            plan_id: planId,
+            start_date: effectiveStartDate,
+            expiry_date: expiryDate || null,
+            next_billing_date: nextBillingDate,
+            payment_terms: paymentTerms || 'Due Upon Receipt',
+            status: status || 'Confirmed',
+          },
+        ])
+        .select()
+        .single();
+
+      if (directSubError) throw directSubError;
+
+      const itemsPayload = processedItems.map((pi) => ({
+        subscription_id: directSub.id,
+        product_id: pi.product_id,
+        variant_id: pi.variant_id,
+        description: pi.description,
+        quantity: pi.quantity,
+        unit_price: pi.unit_price,
+      }));
+
+      const { error: itemsError } = await supabaseAdmin
+        .from('subscription_items')
+        .insert(itemsPayload);
+
+      if (itemsError) throw itemsError;
+
+      effectiveSubId = directSub.id;
+    } else {
+      throw subError;
+    }
+  } else {
+    effectiveSubId = subscriptionId;
+  }
 
   const { data: subscription, error: fetchError } = await supabaseAdmin
     .from('subscriptions')
@@ -344,7 +388,7 @@ export const createSubscriptionDirectly = async ({
         variant:variant_id (id, name, extra_price)
       )
     `)
-    .eq('id', subscriptionId)
+    .eq('id', effectiveSubId)
     .single();
 
   if (fetchError || !subscription) throw fetchError || new Error('Created subscription could not be loaded.');
