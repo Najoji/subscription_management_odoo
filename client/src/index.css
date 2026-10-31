@@ -2,7 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bl-bg: #0a0a0c;
+  --bl-accent: #ff5e1a;
+  --bl-glass-top: rgba(255, 255, 255, 0.07);
+  --bl-glass-bottom: rgba(255, 255, 255, 0.02);
+  --bl-glass-border: rgba(255, 255, 255, 0.09);
+}
+
+html {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bl-bg);
+  background-image:
+    radial-gradient(1100px 600px at 85% -10%, rgba(255, 94, 26, 0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(240, 107, 176, 0.06), transparent 60%),
+    linear-gradient(180deg, #141417 0%, #0a0a0c 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Glass surfaces: cards, modals, panels ---------- */
+[class*="bg-slate-900"][class*="rounded-"],
+[class*="bg-slate-800"][class*="rounded-2xl"] {
+  background-image: linear-gradient(145deg, var(--bl-glass-top), var(--bl-glass-bottom)) !important;
+  background-color: rgba(24, 24, 28, 0.72) !important;
+  border-color: var(--bl-glass-border) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 12px 32px -12px rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+/* Sidebar */
+aside[class*="bg-slate-900"] {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)) !important;
+  background-color: rgba(16, 16, 19, 0.85) !important;
+  border-color: var(--bl-glass-border) !important;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+/* Top bars / header */
+header[class*="bg-slate-900"],
+div[class*="bg-slate-900"][class*="border-b"] {
+  background-color: rgba(14, 14, 17, 0.75) !important;
+  border-color: var(--bl-glass-border) !important;
+}
+
+/* Page background utilities should let the gradient show through */
+[class*="bg-slate-950"][class*="min-h-screen"] {
+  background-color: transparent !important;
+}
+
+/* ---------- Brand accent polish ---------- */
+.bg-gradient-to-r.from-indigo-600,
+.bg-gradient-to-tr.from-indigo-600 {
+  box-shadow: 0 8px 24px -8px rgba(255, 94, 26, 0.55);
+}
+
+button[class*="bg-indigo-600"]:hover,
+a[class*="bg-indigo-600"]:hover {
+  box-shadow: 0 0 22px rgba(255, 94, 26, 0.35);
+}
+
+/* Inputs */
+input, select, textarea {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: rgba(255, 94, 26, 0.7) !important;
+  box-shadow: 0 0 0 3px rgba(255, 94, 26, 0.15);
+}
+
+/* Table rows */
+tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2f2f36 transparent;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #2f2f36; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #4a4a53; }
+
+::selection { background: #ff5e1a; color: #fff; }
+
+/* Print: keep invoices on white paper */
+@media print {
+  body { background: #fff !important; }
 }

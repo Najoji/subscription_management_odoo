@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 
 const STATUS_COLORS = {
   Active: '#10b981', // emerald
-  Confirmed: '#3b82f6', // blue
+  Confirmed: '#f78ec5', // blue
   Draft: '#94a3b8', // slate
   Paused: '#f59e0b', // amber
   Closed: '#ef4444', // rose
@@ -39,7 +39,7 @@ export default function StatusPieChart({ counts = {} }) {
             {data.map((entry) => (
               <Cell
                 key={entry.name}
-                fill={STATUS_COLORS[entry.name] || '#6366f1'}
+                fill={STATUS_COLORS[entry.name] || '#ff5e1a'}
                 stroke="transparent"
               />
             ))}
@@ -47,9 +47,9 @@ export default function StatusPieChart({ counts = {} }) {
           <Tooltip
             formatter={(value, name) => [`${value} Subscriptions`, name]}
             contentStyle={{
-              backgroundColor: '#0f172a',
+              backgroundColor: '#141417',
               borderRadius: '8px',
-              border: '1px solid #334155',
+              border: '1px solid rgba(255,255,255,0.1)',
               color: '#fff',
               fontSize: '12px',
             }}
