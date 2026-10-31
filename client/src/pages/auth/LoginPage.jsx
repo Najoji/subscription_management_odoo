@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const { success, error, info } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,17 +33,21 @@ export default function LoginPage() {
       activeTabClass: 'bg-emerald-600/20 text-emerald-300 border-emerald-500 shadow-sm shadow-emerald-500/20',
       badgeClass: 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60',
       defaultPath: '/portal/dashboard',
-      placeholder: 'customer@company.com',
+      placeholder: 'acme@brightloop.example.com',
+      demoEmail: 'acme@brightloop.example.com',
+      demoPassword: 'Demo@Brightloop2026',
     },
     admin: {
       title: 'Admin Console',
       description: 'Manage products, pricing plans, automated billing, team accounts & reports.',
       icon: ShieldCheck,
-      color: 'indigo',
-      activeTabClass: 'bg-indigo-600/20 text-indigo-300 border-indigo-500 shadow-sm shadow-indigo-500/20',
-      badgeClass: 'bg-indigo-950/60 text-indigo-400 border-indigo-800/60',
+      color: 'amber',
+      activeTabClass: 'bg-amber-600/20 text-amber-300 border-amber-500 shadow-sm shadow-amber-500/20',
+      badgeClass: 'bg-amber-950/60 text-amber-400 border-amber-800/60',
       defaultPath: '/admin/dashboard',
-      placeholder: 'admin@brightloop.com',
+      placeholder: 'admin@brightloop.example.com',
+      demoEmail: 'admin@brightloop.example.com',
+      demoPassword: 'Demo@Brightloop2026',
     },
     staff: {
       title: 'Staff Workspace',
@@ -53,11 +57,23 @@ export default function LoginPage() {
       activeTabClass: 'bg-blue-600/20 text-blue-300 border-blue-500 shadow-sm shadow-blue-500/20',
       badgeClass: 'bg-blue-950/60 text-blue-400 border-blue-800/60',
       defaultPath: '/staff/dashboard',
-      placeholder: 'staff@brightloop.com',
+      placeholder: 'staff1@brightloop.example.com',
+      demoEmail: 'staff1@brightloop.example.com',
+      demoPassword: 'Demo@Brightloop2026',
     },
   };
 
   const currentRoleConfig = ROLE_CONFIG[selectedRole];
+
+  const handleRoleTabChange = (roleKey) => {
+    setSelectedRole(roleKey);
+  };
+
+  const handleFillDemo = () => {
+    setEmail(currentRoleConfig.demoEmail);
+    setPassword(currentRoleConfig.demoPassword);
+    info(`Filled demo credentials for ${currentRoleConfig.title}`);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,23 +87,35 @@ export default function LoginPage() {
       const res = await login({ email, password });
       const actualRole = res?.profile?.role || 'customer';
 
-      // Verify that the user signed into the matching portal
-      if (actualRole !== selectedRole) {
-        info(`Note: Signed in as a registered '${actualRole.toUpperCase()}' account.`);
-      } else {
-        success(`Welcome! Signed into ${currentRoleConfig.title}`);
+      // 🔒 STRICT PORTAL SECURITY CHECK:
+      // The account's actual database role MUST strictly match the selected portal tab!
+      if (selectedRole === 'admin' && actualRole !== 'admin') {
+        await logout();
+        error(`Access Denied: This account is registered as '${actualRole.toUpperCase()}' and does not have Administrator privileges. Please select the '${actualRole.charAt(0).toUpperCase() + actualRole.slice(1)}' tab.`);
+        return;
       }
 
-      // Navigate strictly to the authenticated user's authorized portal
+      if (selectedRole === 'staff' && actualRole !== 'staff' && actualRole !== 'admin') {
+        await logout();
+        error(`Access Denied: This account is registered as '${actualRole.toUpperCase()}' and does not have Staff access. Please select the '${actualRole.charAt(0).toUpperCase() + actualRole.slice(1)}' tab.`);
+        return;
+      }
+
+      if (selectedRole === 'customer' && actualRole !== 'customer') {
+        await logout();
+        error(`Access Denied: This account is registered as an internal Organization '${actualRole.toUpperCase()}'. Please select the '${actualRole.charAt(0).toUpperCase() + actualRole.slice(1)}' tab.`);
+        return;
+      }
+
+      success(`Welcome! Signed into ${currentRoleConfig.title}`);
+
+      // Navigate strictly to the verified portal
       if (actualRole === 'admin') {
-        const dest = (from && from.startsWith('/admin')) ? from : '/admin/dashboard';
-        navigate(dest, { replace: true });
+        navigate('/admin/dashboard', { replace: true });
       } else if (actualRole === 'staff') {
-        const dest = (from && from.startsWith('/staff')) ? from : '/staff/dashboard';
-        navigate(dest, { replace: true });
+        navigate('/staff/dashboard', { replace: true });
       } else {
-        const dest = (from && from.startsWith('/portal')) ? from : '/portal/dashboard';
-        navigate(dest, { replace: true });
+        navigate('/portal/dashboard', { replace: true });
       }
     } catch (err) {
       error(err.message || 'Invalid email or password for this account');
@@ -109,7 +137,7 @@ export default function LoginPage() {
         <div className="grid grid-cols-3 gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl">
           <button
             type="button"
-            onClick={() => setSelectedRole('customer')}
+            onClick={() => handleRoleTabChange('customer')}
             className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-lg border text-xs font-semibold transition-all ${
               selectedRole === 'customer'
                 ? ROLE_CONFIG.customer.activeTabClass
@@ -122,20 +150,20 @@ export default function LoginPage() {
 
           <button
             type="button"
-            onClick={() => setSelectedRole('admin')}
+            onClick={() => handleRoleTabChange('admin')}
             className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-lg border text-xs font-semibold transition-all ${
               selectedRole === 'admin'
                 ? ROLE_CONFIG.admin.activeTabClass
                 : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
           >
-            <ShieldCheck className={`w-4 h-4 mb-1 ${selectedRole === 'admin' ? 'text-indigo-400' : 'text-slate-400'}`} />
+            <ShieldCheck className={`w-4 h-4 mb-1 ${selectedRole === 'admin' ? 'text-amber-400' : 'text-slate-400'}`} />
             <span>Admin</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setSelectedRole('staff')}
+            onClick={() => handleRoleTabChange('staff')}
             className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-lg border text-xs font-semibold transition-all ${
               selectedRole === 'staff'
                 ? ROLE_CONFIG.staff.activeTabClass
@@ -147,14 +175,26 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Selected Portal Explanation */}
-        <div className={`mt-3 p-3 rounded-xl border text-xs flex items-start gap-2.5 transition-colors ${currentRoleConfig.badgeClass}`}>
-          <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
-          <div>
-            <span className="font-bold block">{currentRoleConfig.title}</span>
-            <span className="text-[11px] opacity-80 leading-relaxed block mt-0.5">
-              {currentRoleConfig.description}
-            </span>
+        {/* Selected Portal Explanation & Demo Fill Helper */}
+        <div className={`mt-3 p-3 rounded-xl border text-xs transition-colors ${currentRoleConfig.badgeClass}`}>
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
+            <div className="flex-1">
+              <span className="font-bold block">{currentRoleConfig.title}</span>
+              <span className="text-[11px] opacity-80 leading-relaxed block mt-0.5">
+                {currentRoleConfig.description}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
+            <span className="text-[11px] opacity-70">Demo Credentials:</span>
+            <button
+              type="button"
+              onClick={handleFillDemo}
+              className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 underline decoration-dotted transition-colors"
+            >
+              Auto-fill {selectedRole.toUpperCase()} credentials
+            </button>
           </div>
         </div>
       </div>
