@@ -1794,8 +1794,13 @@ export async function seedDemoData() {
   return stats;
 }
 
-// Auto-run if executed directly via node src/seed/seedDemoData.js
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
+// Auto-run if executed directly
+const isDirectRun = process.argv[1] && (
+  import.meta.url.toLowerCase().endsWith(process.argv[1].replace(/\\/g, '/').toLowerCase()) ||
+  process.argv[1].includes('seedDemoData')
+);
+
+if (isDirectRun) {
   seedDemoData()
     .then(() => process.exit(0))
     .catch((err) => {
