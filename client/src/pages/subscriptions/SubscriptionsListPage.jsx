@@ -92,11 +92,22 @@ export default function SubscriptionsListPage() {
       key: 'total',
       label: 'Cycle Rate',
       align: 'right',
-      render: (val) => (
-        <span className="font-bold text-emerald-400">
-          {formatCurrency(val)}
-        </span>
-      ),
+      render: (val, row) => {
+        let amount = val ?? row.cycle_rate ?? row.recurring_amount;
+        if ((amount === undefined || amount === null || amount === 0) && row.subscription_items?.length > 0) {
+          const subtotal = row.subscription_items.reduce((sum, it) => {
+            const price = Number(it.unit_price || it.unitPrice || it.product?.sales_price || 0);
+            const extra = Number(it.variant?.extra_price || 0);
+            return sum + (price + extra) * (Number(it.quantity) || 1);
+          }, 0);
+          amount = subtotal * 1.18;
+        }
+        return (
+          <span className="font-bold text-emerald-400">
+            {formatCurrency(amount || 0)}
+          </span>
+        );
+      },
     },
     {
       key: 'status',

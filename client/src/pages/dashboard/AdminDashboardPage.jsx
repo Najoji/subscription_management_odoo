@@ -207,8 +207,8 @@ export default function AdminDashboardPage() {
                     <p className="text-slate-400 mt-0.5">{sub.customerName || 'Customer'}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-white">{formatCurrency(sub.total)}</p>
-                    <p className="text-slate-500 text-[11px]">Due: {formatDate(sub.nextBillingDate)}</p>
+                    <p className="font-semibold text-white">{formatCurrency(sub.total ?? sub.cycle_rate ?? 0)}</p>
+                    <p className="text-slate-500 text-[11px]">Due: {formatDate(sub.nextBillingDate || sub.next_billing_date)}</p>
                   </div>
                 </div>
               ))}

@@ -92,14 +92,50 @@ export const listSubscriptions = async ({
   const { data, count, error } = await query;
   if (error) throw error;
 
+  const enriched = (data || []).map(enrichSubscriptionWithTotals);
+
   return {
-    subscriptions: data || [],
+    subscriptions: enriched,
     pagination: {
       page: numPage,
       limit: numLimit,
       total: count || 0,
       totalPages: Math.ceil((count || 0) / numLimit),
     },
+  };
+};
+
+/**
+ * Enrich a subscription object with recurring cycle totals and friendly aliases.
+ */
+export const enrichSubscriptionWithTotals = (sub) => {
+  if (!sub) return sub;
+  const items = sub.subscription_items || [];
+  let subtotal = new Decimal(0);
+
+  for (const it of items) {
+    const unitPrice = new Decimal(it.unit_price || it.product?.sales_price || 0);
+    const extraPrice = new Decimal(it.variant?.extra_price || 0);
+    const qty = new Decimal(it.quantity || 1);
+    subtotal = subtotal.plus(unitPrice.plus(extraPrice).times(qty));
+  }
+
+  // Standard GST 18%
+  const taxTotal = subtotal.times(0.18).toDecimalPlaces(2);
+  const total = subtotal.plus(taxTotal).toDecimalPlaces(2);
+
+  return {
+    ...sub,
+    subtotal: subtotal.toNumber(),
+    taxTotal: taxTotal.toNumber(),
+    total: total.toNumber(),
+    cycle_rate: total.toNumber(),
+    subscriptionNumber: sub.subscription_number,
+    startDate: sub.start_date,
+    expiryDate: sub.expiry_date,
+    nextBillingDate: sub.next_billing_date,
+    customerName: sub.customer?.full_name || sub.customer?.email || 'Customer',
+    planName: sub.plan?.name || 'Standard Monthly',
   };
 };
 
@@ -139,7 +175,7 @@ export const getSubscriptionById = async (id, user) => {
     throw forbiddenErr;
   }
 
-  return data;
+  return enrichSubscriptionWithTotals(data);
 };
 
 /**

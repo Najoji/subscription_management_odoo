@@ -281,22 +281,39 @@ export default function SubscriptionDetailPage() {
         </div>
 
         {/* Pricing Summary */}
-        <div className="flex justify-end pt-2">
-          <div className="w-full sm:w-72 bg-slate-50 dark:bg-slate-950/80 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-            <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>Cycle Subtotal:</span>
-              <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(subscription.subtotal)}</span>
+        {(() => {
+          const items = subscription.subscription_items || [];
+          const computedSubtotal = items.reduce((sum, it) => {
+            const p = Number(it.unit_price || it.unitPrice || it.product?.sales_price || 0);
+            const extra = Number(it.variant?.extra_price || 0);
+            return sum + (p + extra) * (Number(it.quantity) || 1);
+          }, 0);
+          const computedTax = computedSubtotal * 0.18;
+          const computedTotal = computedSubtotal + computedTax;
+
+          const displaySubtotal = subscription.subtotal ?? computedSubtotal;
+          const displayTax = subscription.taxTotal ?? computedTax;
+          const displayTotal = subscription.total ?? subscription.cycle_rate ?? computedTotal;
+
+          return (
+            <div className="flex justify-end pt-2">
+              <div className="w-full sm:w-72 bg-slate-50 dark:bg-slate-950/80 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Cycle Subtotal:</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(displaySubtotal)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Estimated Tax (18%):</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(displayTax)}</span>
+                </div>
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex justify-between text-sm font-black text-slate-900 dark:text-white">
+                  <span>Recurring Cycle Rate:</span>
+                  <span className="text-emerald-400">{formatCurrency(displayTotal)}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>Estimated Tax (18%):</span>
-              <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(subscription.taxTotal)}</span>
-            </div>
-            <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex justify-between text-sm font-black text-slate-900 dark:text-white">
-              <span>Recurring Cycle Rate:</span>
-              <span className="text-emerald-400">{formatCurrency(subscription.total)}</span>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Confirmation Dialog */}
