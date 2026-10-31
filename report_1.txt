@@ -1,0 +1,207 @@
+================================================================================
+BRIGHTLOOP SUBSCRIPTION MANAGEMENT SYSTEM — DEVELOPMENT REPORT 1
+MEMBER 3: BILLING ENGINE, INVOICES, PAYMENTS, DISCOUNTS & DASHBOARD ANALYTICS
+================================================================================
+Date / Time: 2026-10-31 11:42 IST
+Git Branch: feature/billing-engine
+Remote Tracking: origin/feature/billing-engine
+Pull Request URL: https://github.com/Najoji/subscription_management_odoo/pull/new/feature/billing-engine
+Latest Commit: 35c5657 ("docs(integration): update integration log and add customer isolation security test")
+Test Status: 34 / 34 PASSED (100% Success against live Supabase PostgreSQL DB)
+
+================================================================================
+1. EXECUTIVE SUMMARY & OWNED DIRECTORIES
+================================================================================
+All assigned responsibilities for Member 3 have been fully implemented, tested,
+and pushed to the remote branch 'feature/billing-engine'.
+
+Directory & File Ownership:
+- server/src/modules/billing/
+    - pricingService.js   (Central pricing engine using decimal.js)
+    - billingEngine.js    (Recurring billing run, catchup & duplicate prevention)
+    - controller.js       (HTTP controller for POST /api/billing/run)
+    - routes.js           (Authenticated & authorized routes)
+- server/src/services/
+    - pricingService.js   (Cross-module re-export for Member 2 quotations)
+- server/src/modules/discounts/
+    - service.js          (Validation rules, limits, date ranges, CRUD)
+    - controller.js       (List, get, create, update, validate)
+    - routes.js           (Endpoints with RBAC)
+- server/src/modules/invoices/
+    - service.js          (List, details, confirm, cancel, customer isolation)
+    - controller.js       (Invoice HTTP handlers)
+    - routes.js           (Draft to Confirmed, cancel, list, details)
+- server/src/modules/payments/
+    - service.js          (Record payment, balance calculation, Paid progression)
+    - controller.js       (Payment recording and history handlers)
+    - routes.js           (Endpoints mounted under /api/payments and /api/invoices/:id/payments)
+- server/src/modules/dashboard/
+    - service.js          (Real-time database aggregations for KPIs and revenue)
+    - controller.js       (Summary HTTP handler)
+    - routes.js           (GET /api/dashboard/summary for Admin and Staff)
+- server/test/
+    - member3_verification.js (34 automated end-to-end integration tests)
+- PROJECT_DOCUMENTATION/
+    - INTEGRATION_LOG.md  (Milestone logged and committed)
+
+================================================================================
+2. TECHNICAL IMPLEMENTATION DETAILS
+================================================================================
+
+A. CENTRAL PRICING SERVICE (decimal.js paise precision)
+- Unit Price = Product Sales Price + Selected Variant Extra Price
+- Line Subtotal = Unit Price * Quantity
+- Eligible Discount = Fixed or Percentage applied to subtotal (capped at subtotal)
+- Taxable Base = Line Subtotal - Discount
+- Tax Amount = Taxable Base * (Tax Rate / 100)
+- Final Line Total = Taxable Base + Tax Amount
+Verification Example (matches specification exactly):
+  Base Product: Rs. 1,000.00
+  Variant Extra: Rs. 560.00
+  Quantity: 2
+  Unit Price: Rs. 1,560.00
+  Line Subtotal: Rs. 3,120.00
+  10% Discount: Rs. 312.00
+  Taxable Amount: Rs. 2,808.00
+  18% Tax: Rs. 505.44
+  Final Total: Rs. 3,313.44
+
+B. BILLING ENGINE (POST /api/billing/run)
+- Accepts optional { "asOfDate": "YYYY-MM-DD" }, defaults to current date.
+- Scans for subscriptions where status = 'Active' and next_billing_date <= asOfDate.
+- Ignores 'Draft', 'Quotation', 'Paused', and 'Closed' subscriptions.
+- Missed billing periods: If a subscription is multiple billing cycles overdue,
+  it catches up sequentially, creating separate invoices for each period up to asOfDate.
+- Duplicate prevention: Uses database constraint UNIQUE(subscription_id, period_start).
+  Running billing twice never generates a duplicate invoice for an already processed period.
+- Creates immutable snapshot invoice line items in invoice_items.
+- Advances subscriptions.next_billing_date to period_end.
+- Sets initial invoice status to 'Draft' (never marked Paid automatically).
+
+C. DISCOUNT MANAGEMENT (/api/discounts)
+- Supports fixed and percentage discounts.
+- Enforces validity rules:
+  1. Active status check (is_active = true)
+  2. Date validity window (start_at <= today <= end_at)
+  3. Minimum spend threshold (subtotal >= minimum_purchase)
+  4. Minimum quantity check (quantity >= minimum_quantity)
+  5. Usage limits (usage_count < usage_limit)
+  6. Caps discount amount to never exceed eligible subtotal.
+
+D. INVOICE MANAGEMENT (/api/invoices)
+- GET /api/invoices: Pagination, search by invoice_number, filter by customerId,
+  subscriptionId, status, date range, and isOverdue (Confirmed, past due date, unpaid).
+- GET /api/invoices/:id: Returns full snapshot details, customer info, subscription,
+  billing period, line items, taxes, recorded payments, and remaining balance.
+- POST /api/invoices/:id/confirm: Moves invoice from 'Draft' to 'Confirmed'.
+- POST /api/invoices/:id/cancel: Cancels eligible invoices. Strictly forbids
+  cancelling invoices that have recorded payments.
+
+E. PAYMENT MANAGEMENT (/api/payments & /api/invoices/:id/payments)
+- Supported methods: 'Cash', 'UPI', 'Card', 'Bank Transfer', 'Other'.
+- Validates payment amount > 0 and amount <= remaining invoice balance.
+- Prevents payments against 'Cancelled' invoices.
+- Increments amount_paid and tracks received_by user ID.
+- Status progression rule:
+  - If new_balance > 0: status remains 'Confirmed' (partial payment).
+  - If new_balance == 0: status automatically updates to 'Paid'.
+
+F. DASHBOARD ANALYTICS (GET /api/dashboard/summary)
+- Returns real-time KPI metrics aggregated directly via database queries:
+  1. activeSubscriptions: count of 'Active' subscriptions.
+  2. totalSubscriptions: total count of all subscriptions.
+  3. revenueCollected: sum of actual recorded payments (not billed invoices).
+  4. outstandingAmount: sum of unpaid balances on confirmed invoices.
+  5. overdueInvoices: count of confirmed invoices where due_date < today and unpaid.
+  6. subscriptionStatusCounts: counts grouped by status (Active, Draft, Closed, etc.).
+  7. revenueByPeriod: monthly revenue trend array ([ { period: '2026-10', revenue: ... } ]).
+
+G. SECURITY & RBAC
+- Admin: Full access across billing runs, discounts, invoices, payments, dashboard.
+- Staff: Operational access to billing runs, invoice confirmation, payments, dashboard.
+- Customer: View only their own invoices and payments (isolated by customer_id).
+
+================================================================================
+3. AUTOMATED TEST SUITE EXECUTION RESULTS
+================================================================================
+File: server/test/member3_verification.js
+Run against live Supabase PostgreSQL database.
+
+[PASS] 1.1 Unit price calculation (1000 + 560) -> 1560.00
+[PASS] 1.2 Line subtotal (1560 * 2) -> 3120.00
+[PASS] 1.3 Eligible discount (10% of 3120) -> 312.00
+[PASS] 1.4 Taxable base (3120 - 312) -> 2808.00
+[PASS] 1.5 Applicable tax (18% of 2808) -> 505.44
+[PASS] 1.6 Final invoice total (2808 + 505.44) -> 3313.44
+[PASS] 2.1 Validated active seed discount WELCOME10
+[PASS] 2.2 WELCOME10 gives Rs. 100 on Rs. 1000
+[PASS] 3.1 Invoices generated on initial run
+[PASS] 3.2 Invoice object returned in summary
+[PASS] 3.3 Newly generated invoice initial status is Draft
+[PASS] 3.4 Invoice subtotal is Rs. 3,120.00
+[PASS] 3.5 Invoice tax is 18% of 3120 (Rs. 561.60)
+[PASS] 3.6 Invoice total is Rs. 3,681.60
+[PASS] 3.7 Subscription next_billing_date advanced to 2026-11-01
+[PASS] 4.1 No duplicate invoices generated when run again
+[PASS] 4.2 DB enforces UNIQUE(subscription_id, period_start) constraint
+[PASS] 5.1 Generated all 4 overdue monthly periods (Aug, Sep, Oct, Nov)
+[PASS] 5.2 Next billing date caught up to 2026-12-01
+[PASS] 6.1 Invoice moved from Draft to Confirmed
+[PASS] 7.1 Partial payment keeps invoice in Confirmed status
+[PASS] 7.2 Invoice amount_paid updated to Rs. 1000.00
+[PASS] 7.3 Remaining balance accurately computed as Rs. 2681.60
+[PASS] 7.4 Full payment transitions invoice status to Paid
+[PASS] 7.5 Remaining balance becomes Rs. 0.00
+[PASS] 7.6 isFullyPaid flag is true
+[PASS] 8.1 Invoice successfully cancelled
+[PASS] 8.2 Payments strictly forbidden on Cancelled invoice
+[PASS] 9.1 Dashboard reflects active subscriptions
+[PASS] 9.2 Revenue collected includes actual recorded payments
+[PASS] 9.3 Revenue by period is formatted as an array
+[PASS] 10.1 Customer can view their own invoices
+[PASS] 10.2 Customer cannot view other customers' invoices in listing
+[PASS] 10.3 Direct ID access to other customer's invoice blocked with 403 Access denied
+
+OVERALL: 34 PASSED, 0 FAILED (100% SUCCESS)
+
+================================================================================
+4. COPY-PASTE UPDATES FOR TEAM MEMBERS
+================================================================================
+
+--- FOR MEMBER 1 (Integration Lead / Architecture) ---
+"Hey Member 1, Member 3 here!
+I have finished implementing the Billing Engine, Pricing Service, Discounts, Invoices, Payments, and Dashboard analytics modules.
+- Branch: feature/billing-engine (pushed to remote).
+- PR URL: https://github.com/Najoji/subscription_management_odoo/pull/new/feature/billing-engine
+- Architecture Compliance: I did NOT modify server/src/app.js. All 5 routers (billing, invoices, discounts, payments, dashboard) are exported cleanly and match your existing route registrations in app.js.
+- Tests: 34 unit and database integration tests passed with 100% success against our shared Supabase database."
+
+--- FOR MEMBER 2 (Quotations & Subscriptions) ---
+"Hey Member 2, Member 3 here!
+The Billing Engine and Central Pricing Service are ready for your subscription workflows:
+1. Shared Pricing Service: You can import calculateLineItemPricing and calculateDocumentPricing directly from 'server/src/services/pricingService.js' so quotation totals match invoice calculations exactly.
+2. Subscription Fields Consumed by Billing:
+   - status = 'Active' (billing ignores Draft, Quotation, Paused, Closed).
+   - next_billing_date (YYYY-MM-DD).
+   - plans.billing_interval ('daily', 'weekly', 'monthly', 'yearly') & interval_count.
+   - subscription_items (product_id, variant_id, quantity, unit_price).
+   When billing runs, it automatically advances next_billing_date to period_end."
+
+--- FOR MEMBER 4 (Frontend UI Developer) ---
+"Hey Member 4, Member 3 here!
+All financial, invoice, billing, and dashboard endpoints are live on branch feature/billing-engine:
+1. Dashboard KPI: GET /api/dashboard/summary
+   Returns activeSubscriptions, totalSubscriptions, revenueCollected, outstandingAmount, overdueInvoices, subscriptionStatusCounts, revenueByPeriod.
+2. Invoices List: GET /api/invoices?page=1&limit=10&search=...&status=Confirmed&isOverdue=true
+3. Invoice Details: GET /api/invoices/:id (includes balance, payments, lines)
+4. Confirm Invoice: POST /api/invoices/:id/confirm
+5. Record Payment: POST /api/invoices/:id/payments
+   Body: { "method": "UPI", "amount": 1500, "paymentDate": "2026-11-01", "note": "Payment ref" }
+6. Trigger Billing: POST /api/billing/run
+   Body: { "asOfDate": "2026-11-01" }
+7. Validate Discount: POST /api/discounts/validate
+   Body: { "code": "WELCOME10", "subtotal": 1000, "quantity": 1 }"
+
+================================================================================
+END OF REPORT 1
+================================================================================
