@@ -14,8 +14,10 @@ echo Frontend: http://localhost:5173
 echo.
 echo Open your browser at: http://localhost:5173
 echo.
-echo Admin credentials:
-echo Email:    admin@brightloop.com
-echo Password: Brightloop@2026
+echo ====================================================================
+echo Verified Demo Credentials (Password for all: Demo@Brightloop2026):
+echo   - Admin:    admin@brightloop.example.com (or admin@brightloop.com / Brightloop@2026)
+echo   - Staff:    staff1@brightloop.example.com
+echo   - Customer: acme@brightloop.example.com
 echo ====================================================================
 pause

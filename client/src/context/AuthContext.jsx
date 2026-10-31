@@ -154,42 +154,21 @@ export const AuthProvider = ({ children }) => {
 
   // Sign In
   const login = async ({ email, password }) => {
-    // Check if this matches a demo account for quick hackathon switch
     const cleanEmail = email.trim().toLowerCase();
     
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
 
-      if (error) {
-        // If Supabase failed (e.g. invalid credentials or network/placeholder key), check DEMO_ACCOUNTS
-        if (DEMO_ACCOUNTS[cleanEmail] && (password === 'Password123!' || password === 'Admin@1234' || password === 'Demo@1234' || password === 'Demo@Brightloop2026' || password === 'Brightloop@2026')) {
-          const demoUser = DEMO_ACCOUNTS[cleanEmail];
-          setProfile(demoUser);
-          setUser({ id: demoUser.id, email: demoUser.email });
-          localStorage.setItem('brightloop_local_profile', JSON.stringify(demoUser));
-          return { success: true, profile: demoUser };
-        }
-        throw new Error(error.message);
-      }
-
-      setSession(data.session);
-      setUser(data.user);
-      const verifiedProfile = await fetchProfile();
-      return { success: true, profile: verifiedProfile };
-    } catch (err) {
-      // Check fallback for demo mode
-      if (DEMO_ACCOUNTS[cleanEmail]) {
-        const demoUser = DEMO_ACCOUNTS[cleanEmail];
-        setProfile(demoUser);
-        setUser({ id: demoUser.id, email: demoUser.email });
-        localStorage.setItem('brightloop_local_profile', JSON.stringify(demoUser));
-        return { success: true, profile: demoUser };
-      }
-      throw err;
+    if (error) {
+      throw new Error(error.message || 'Invalid email or password');
     }
+
+    setSession(data.session);
+    setUser(data.user);
+    const verifiedProfile = await fetchProfile();
+    return { success: true, profile: verifiedProfile };
   };
 
   // Switch demo account directly (useful during hackathon review)
