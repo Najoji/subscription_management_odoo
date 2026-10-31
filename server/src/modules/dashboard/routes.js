@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { sendError } from '../../utils/apiResponse.js';
+import { authenticateUser } from '../../middleware/auth.js';
+import { authorizeRoles } from '../../middleware/authorize.js';
+import * as dashboardController from './controller.js';
 
 const router = Router();
 
-// Placeholder for Member 3's dashboard module
-router.all('*', (req, res) => {
-  return sendError(res, 'Dashboard module is currently being developed by Member 3.', 501);
-});
+router.use(authenticateUser);
+
+// Dashboard KPI analytics endpoint accessible to Admin and Staff
+router.get('/summary', authorizeRoles('admin', 'staff'), dashboardController.getSummary);
 
 export default router;
