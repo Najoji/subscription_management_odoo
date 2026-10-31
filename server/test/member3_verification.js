@@ -140,9 +140,9 @@ const runVerificationSuite = async () => {
     const createdInvId = billingRun1.invoices[0].id;
     const invDetails = await invoiceService.getInvoiceById(createdInvId);
     assertEqual(invDetails.status, 'Draft', '3.3 Newly generated invoice initial status is Draft');
-    assertEqual(invDetails.subtotal, '3120.00', '3.4 Invoice subtotal is ₹3,120.00');
-    assertEqual(invDetails.tax_total, '561.60', '3.5 Invoice tax is 18% of 3120 (₹561.60)');
-    assertEqual(invDetails.total, '3681.60', '3.6 Invoice total is ₹3,681.60');
+    assertMoney(invDetails.subtotal, '3120.00', '3.4 Invoice subtotal is ₹3,120.00');
+    assertMoney(invDetails.tax_total, '561.60', '3.5 Invoice tax is 18% of 3120 (₹561.60)');
+    assertMoney(invDetails.total, '3681.60', '3.6 Invoice total is ₹3,681.60');
 
     // Verify subscription next billing date advanced
     const { data: refreshedSub } = await supabaseAdmin
@@ -249,8 +249,8 @@ const runVerificationSuite = async () => {
     });
 
     assertEqual(pay1.invoice.status, 'Confirmed', '7.1 Partial payment keeps invoice in Confirmed status');
-    assertEqual(pay1.invoice.amount_paid, '1000.00', '7.2 Invoice amount_paid updated to ₹1000.00');
-    assertEqual(pay1.remainingBalance, '2681.60', '7.3 Remaining balance accurately computed as ₹2681.60');
+    assertMoney(pay1.invoice.amount_paid, '1000.00', '7.2 Invoice amount_paid updated to ₹1000.00');
+    assertMoney(pay1.remainingBalance, '2681.60', '7.3 Remaining balance accurately computed as ₹2681.60');
 
     // Pay remaining balance of ₹2,681.60
     const pay2 = await paymentService.recordPayment({
