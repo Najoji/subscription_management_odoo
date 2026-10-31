@@ -25,7 +25,7 @@ import Button from '../components/common/Button.jsx';
 import RunBillingModal from '../components/billing/RunBillingModal.jsx';
 
 export default function AppShell({ navItems = [], roleTitle = 'Portal', children }) {
-  const { profile, role, logout, loginAsDemo } = useAuth();
+  const { profile, role, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
   const navigate = useNavigate();
@@ -38,39 +38,7 @@ export default function AppShell({ navItems = [], roleTitle = 'Portal', children
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
-      {/* Top Demo Shortcut Banner for quick evaluation */}
-      <div className="bg-slate-900 border-b border-slate-800 px-4 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-slate-400">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-semibold text-slate-300">Brightloop Subscription System</span>
-          <span className="hidden sm:inline text-slate-500">|</span>
-          <span className="hidden sm:inline text-slate-400">Current Role:</span>
-          <Badge status={role} />
-        </div>
 
-        {/* Quick Demo Switcher */}
-        <div className="flex items-center gap-1.5 text-[11px]">
-          <span className="text-slate-500 hidden md:inline">Switch Role:</span>
-          <button
-            onClick={() => { loginAsDemo('admin'); navigate('/admin/dashboard'); }}
-            className={`px-2 py-0.5 rounded transition-colors ${role === 'admin' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
-          >
-            Admin
-          </button>
-          <button
-            onClick={() => { loginAsDemo('staff'); navigate('/staff/dashboard'); }}
-            className={`px-2 py-0.5 rounded transition-colors ${role === 'staff' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
-          >
-            Staff
-          </button>
-          <button
-            onClick={() => { loginAsDemo('customer'); navigate('/portal/dashboard'); }}
-            className={`px-2 py-0.5 rounded transition-colors ${role === 'customer' ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
-          >
-            Customer
-          </button>
-        </div>
-      </div>
 
       <div className="flex-1 flex overflow-hidden">
         {/* Mobile Backdrop */}
