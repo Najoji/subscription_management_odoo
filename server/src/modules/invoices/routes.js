@@ -8,8 +8,9 @@ const router = Router();
 
 router.use(authenticateUser);
 
-// Invoices listing and details
+// Invoices listing, details, and PDF download
 router.get('/', invoiceController.listInvoices);
+router.get('/:id/pdf', invoiceController.downloadInvoicePdf);
 router.get('/:id', invoiceController.getInvoiceById);
 
 // Staff and Admin operations
